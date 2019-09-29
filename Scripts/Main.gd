@@ -3,6 +3,8 @@ extends Node
 onready var console = $HUD/Console
 onready var output = $HUD/OutputContainer/Output
 
+onready var box = $Box
+
 var codeEnd
 
 var variables = {} 
@@ -18,6 +20,9 @@ var builtFunctions = {
 
 var functions = {}
 
+func _ready():
+	pass
+
 func print_function(arguments):
 	var printContent = arguments[0]
 	output.newline()
@@ -28,9 +33,6 @@ func print_function(arguments):
 	else:
 		output.add_text(str(printContent))
 	
-
-func _ready():
-	pass
 
 func process_assignment(line):
 	var varName = line.split(" = ")[0]
