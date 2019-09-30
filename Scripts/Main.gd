@@ -2,8 +2,7 @@ extends Node
 
 onready var console = $HUD/Console
 onready var output = $HUD/OutputContainer/Output
-
-onready var box = $Box
+onready var simulation = $Simulation
 
 var codeEnd
 
@@ -13,6 +12,12 @@ var constVariables = {
 	"false": false,
 }
 
+var objects = []
+var objectsFunctions = []
+var objectsVariables = []
+
+var simVariables = []
+
 var builtFunctions = {
 	"print" : funcref(self, "print_function")
 	
@@ -20,8 +25,22 @@ var builtFunctions = {
 
 var functions = {}
 
+func _on_simulation_end(status):
+	if status:
+		print("great sucess")
+	else:
+		print("you failed")
+
 func _ready():
-	pass
+	create_simulation()
+
+func create_simulation():
+	simulation.connect("simulationEnd", self, "_on_simulation_end")
+	simVariables = simulation.get_variables()
+	objects = simulation.get_objects()
+	for o in range(objects.size()):
+		objectsFunctions.append(objects[o].get_functions())
+		objectsVariables.append(objects[o].get_variables())
 
 func print_function(arguments):
 	var printContent = arguments[0]
@@ -34,20 +53,47 @@ func print_function(arguments):
 		output.add_text(str(printContent))
 	
 
-func process_assignment(line):
-	var varName = line.split(" = ")[0]
-	var expression = line.split(" = ")[1]
-	var expressionSections = expression.split(" ")
+func calculate_expression(expression):
 	
+	var expressionSections = expression.split(" ")
+		
 	if expressionSections.size() == 1:
 		if expression.is_valid_integer():
-			variables[varName] = expression.to_int()
+			return expression.to_int()
 		elif expression.is_valid_float():
-			variables[varName] = expression.to_float()
-		elif expression[0] == "\"":
-			variables[varName] = expression
-	else:
-		pass
+			return expression.to_float()
+		else:
+			return expression
+
+func process_assignment(line):
+	var varName = line.split(" = ")[0]
+	var varVariable = null
+	var isObject = false
+	
+	if string_has(varName, "."):
+		varVariable = varName.split(".")[1]
+		varName = varName.split(".")[0]
+		
+	var expression = line.split(" = ")[1]
+	
+	var object
+	var objectIndex
+	#Error: no object found
+	for o in range(objects.size()):
+		if objects[o].name == varName:
+			isObject = true
+			object = objects[o]
+			objectIndex = o
+			break
+	
+	if isObject and !objectsVariables[objectIndex].empty() and objectsVariables[objectIndex].has(varVariable) and objectsVariables[objectIndex][varVariable] == true:
+			var script = GDScript.new()
+			script.set_source_code("func assign(object):\n\t object." + varVariable + " = " + String(calculate_expression(expression)))
+			script.reload()
+			var obj = Reference.new()
+			obj.set_script(script)
+			obj.assign(object)
+	
 	
 func calculate_math_expression(expression):
 	pass
@@ -155,7 +201,7 @@ func run_line(lineIndex, stopIndex):
 		if line[0] == "	":
 			line = line.replace("	", "")
 		
-		var sections = line.split(" ", false, 1)
+		var sections = line.split(" ", false)
 		
 		if sections[0] == "var":
 			create_variable(line)
@@ -187,6 +233,8 @@ func _on_RunButton_pressed():
 	variables.clear()
 	codeEnd = console.get_line_count()
 	run_line(0, codeEnd)
+	$HUD.hide()
+	simulation.start_simulation()
 
 func get_condition_result(expression):
 	var sections = expression.split(" ")
@@ -292,3 +340,15 @@ func get_condition_result(expression):
 		else:
 			pass #Erro		
 	return members[0]
+	
+	
+func string_has(string, s):
+	if string.find(s) != null and string.find(s) >= 0:
+		return true
+	else:
+		return false
+		
+		
+		
+		
+		
