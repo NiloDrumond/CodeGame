@@ -23,6 +23,9 @@ func get_variables():
 	}
 	return variables
 	
+
+
+
 func get_functions():
 	var functions = {}
 	return functions
