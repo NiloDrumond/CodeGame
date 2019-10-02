@@ -4,6 +4,7 @@ onready var box = $Box
 onready var goal = $Goal
 onready var endTimer = $Timer
 
+export(int) var duration = 2
 var onGoal = false
 
 signal simulationEnd
@@ -14,7 +15,9 @@ func _ready():
 	box.goal = goal
 
 func get_variables():
-	var variables = null
+	var variables = {
+		"duration": false
+	}
 	return variables
 	
 func get_objects():
@@ -22,6 +25,7 @@ func get_objects():
 	return objects
 	
 func start_simulation():
+	endTimer.start(duration)
 	box.start()
 
 func _on_goal_entered(object):
@@ -32,3 +36,6 @@ func _on_goal_exited(object):
 
 func _on_Timer_timeout():
 	emit_signal("simulationEnd", onGoal)
+	box.stop()
+
+	

@@ -26,3 +26,6 @@ func get_variables():
 func get_functions():
 	var functions = {}
 	return functions
+	
+func stop():
+	moving = false
