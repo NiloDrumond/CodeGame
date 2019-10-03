@@ -12,11 +12,13 @@ var constVariables = {
 	"false": false,
 }
 
-var objects = []
 var objectsFunctions = []
-var objectsVariables = []
 
-var simVariables = []
+var objects = []
+var objGetVariables = []
+var objSetVariables = []
+var simGetVariables
+var simSetVariables
 
 var builtFunctions = {
 	"print" : funcref(self, "print_function")
@@ -36,11 +38,16 @@ func _ready():
 
 func create_simulation():
 	simulation.connect("simulationEnd", self, "_on_simulation_end")
-	simVariables = simulation.get_variables()
+	
+	simGetVariables = simulation.get_get_variables()
+	simSetVariables = simulation.get_set_variables()
+	
 	objects = simulation.get_objects()
+	
 	for o in range(objects.size()):
 		objectsFunctions.append(objects[o].get_functions())
-		objectsVariables.append(objects[o].get_variables())
+		objSetVariables.append(objects[o].get_set_variables())
+		objGetVariables.append(objects[o].get_get_variables())
 
 func print_function(arguments):
 	var printContent = arguments[0]
@@ -86,13 +93,8 @@ func process_assignment(line):
 			objectIndex = o
 			break
 	
-	if isObject and !objectsVariables[objectIndex].empty() and objectsVariables[objectIndex].has(varVariable) and objectsVariables[objectIndex][varVariable] == true:
-			var script = GDScript.new()
-			script.set_source_code("func assign(object):\n\t object." + varVariable + " = " + String(calculate_expression(expression)))
-			script.reload()
-			var obj = Reference.new()
-			obj.set_script(script)
-			obj.assign(object)
+	if isObject and !objSetVariables[objectIndex].empty() and objSetVariables[objectIndex].has(varVariable) and objSetVariables[objectIndex][varVariable] == true:
+			objects[objectIndex]
 	
 	
 func calculate_math_expression(expression):

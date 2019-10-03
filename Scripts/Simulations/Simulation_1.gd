@@ -14,9 +14,16 @@ func _ready():
 	goal.connect("body_exited", self, "_on_goal_exited")
 	box.goal = goal
 
-func get_variables():
+func get_duration():
+	return duration
+
+func get_set_variables():
+	var variables = {}
+	return variables
+
+func get_get_variables():
 	var variables = {
-		"duration": false
+		"duration":  funcref(self, "get_duration")
 	}
 	return variables
 	

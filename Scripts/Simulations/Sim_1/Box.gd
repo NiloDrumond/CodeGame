@@ -1,6 +1,6 @@
 extends KinematicBody2D
 
-var speed = 1.2 
+var speed = 1.2 setget set_speed, get_speed
 var goal
 var direction
 var moving = false
@@ -16,15 +16,27 @@ func start():
 	direction = goal.position - position
 	moving = true
 	
-func get_variables():
+func get_set_variables():
 	var variables = {
-		"speed": true,
-		"position": false
+		"speed": funcref(self, "set_speed"),
 	}
 	return variables
+
+func get_get_variables():
+	var variables = {
+		"speed": funcref(self, "get_speed"),
+		"position": funcref(self, "get_position")
+	}
+	return variables
+
+func get_position():
+	return position
+
+func set_speed(value):
+	speed = value
 	
-
-
+func get_speed():
+	return speed
 
 func get_functions():
 	var functions = {}

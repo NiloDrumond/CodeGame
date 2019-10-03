@@ -8,11 +8,18 @@ extends Area2D
 func _ready():
 	pass # Replace with function body.
 
-func get_variables():
+func get_set_variables():
+	var variables = {}
+	return variables
+
+func get_get_variables():
 	var variables = {
-		"speed": true,
-		"position": false
+		"position": funcref(self, "get_position")
 	}
+	return variables
+	
+func get_position():
+	return position
 	
 func get_functions():
 	var functions = {}
