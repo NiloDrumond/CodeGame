@@ -60,19 +60,47 @@ func print_function(arguments):
 		output.add_text(str(printContent))
 	
 
-func calculate_expression(expression):
+func calculate_expression(expression, lineIndex):
 	
 	var expressionSections = expression.split(" ")
-		
+	
 	if expressionSections.size() == 1:
-		if expression.is_valid_integer():
-			return expression.to_int()
-		elif expression.is_valid_float():
-			return expression.to_float()
+		var value = expressionSections[0]
+		if value.is_valid_integer():
+			return value.to_int()
+		elif value.is_valid_float():
+			return value.to_float()
 		else:
-			return expression
+			var isObject = false
+			var objName
+			var objVar
+			if string_has(value, "."):
+				objName =  value.split(".")[0] 
+				objVar = value.split(".")[1]
+				isObject = true
+			
+			if isObject:
+				if objName == "Sim":
+					if !simGetVariables.empty() and simGetVariables.has(objVar):
+						return simGetVariables[objVar].call_func()
+					else:
+						crash("invalid simulation variable", lineIndex)
+				else:
+					var object
+					var objectIndex
+					
+					for o in range(objects.size()):
+						if objects[o].name == objName:
+							object = objects[o]
+							objectIndex = o
+							break
+					if !objGetVariables.empty() and objGetVariables.has(objVar):
+						return objGetVariables[objVar].call_func()
+					else:
+						crash("invalid object variable", lineIndex)
+					
 
-func process_assignment(line):
+func process_assignment(line, lineIndex):
 	var varName = line.split(" = ")[0]
 	var varVariable = null
 	var isObject = false
@@ -80,21 +108,35 @@ func process_assignment(line):
 	if string_has(varName, "."):
 		varVariable = varName.split(".")[1]
 		varName = varName.split(".")[0]
+		isObject = true
 		
 	var expression = line.split(" = ")[1]
 	
-	var object
-	var objectIndex
-	#Error: no object found
-	for o in range(objects.size()):
-		if objects[o].name == varName:
-			isObject = true
-			object = objects[o]
-			objectIndex = o
-			break
+	if isObject:
+		if varName == "Sim":
+			if !simSetVariables.empty() and simSetVariables.has(varName):
+				simSetVariables[varVariable].call_func(calculate_expression(expression, lineIndex))
+		else:
+			var object
+			var objectIndex
+			#Error: no object found
+			for o in range(objects.size()):
+				if objects[o].name == varName:
+					object = objects[o]
+					objectIndex = o
+					break
+			
+			if !objSetVariables[objectIndex].empty() and objSetVariables[objectIndex].has(varVariable):
+				objSetVariables[objectIndex][varVariable].call_func(calculate_expression(expression, lineIndex))
+	else:
+		if !constVariables.empty() and constVariables.has(varName):
+			crash("cant modify constant variables", lineIndex)
+		elif !variables.empty() and variables.has(varName):
+			variables[varName] = calculate_expression(expression, lineIndex)
+		else:
+			crash("unexpected variable", lineIndex)
+
 	
-	if isObject and !objSetVariables[objectIndex].empty() and objSetVariables[objectIndex].has(varVariable) and objSetVariables[objectIndex][varVariable] == true:
-			objects[objectIndex]
 	
 	
 func calculate_math_expression(expression):
@@ -104,8 +146,9 @@ func calculate_math_expression(expression):
 func crash(error, line):
 	output.newline()
 	output.add_text("Error: " + error + ". For line: " + str(line))
+	print("Error: " + error + ". For line: " + str(line))
 
-func create_variable(line):
+func create_variable(line, lineIndex):
 	var varName = line.split(" ", false, 2)[1]
 	for i in variables:
 		if i == varName:
@@ -113,7 +156,7 @@ func create_variable(line):
 	variables[varName] = null
 	if line.split(" ")[2] == "=":
 		var assignmentLine = line.replace("var ", "")
-		process_assignment(assignmentLine)
+		process_assignment(assignmentLine, lineIndex)
 		
 	
 func get_end_bracket(startIndex):
@@ -206,11 +249,11 @@ func run_line(lineIndex, stopIndex):
 		var sections = line.split(" ", false)
 		
 		if sections[0] == "var":
-			create_variable(line)
+			create_variable(line, lineIndex)
 			run_line(lineIndex+1, stopIndex)
 			
 		elif sections.size() > 1 and sections[1] == "=":
-			process_assignment(line)
+			process_assignment(line, lineIndex)
 			run_line(lineIndex+1, stopIndex)
 			
 		elif sections[0] == "if" or sections[0] == "elif":
