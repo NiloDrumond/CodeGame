@@ -1,6 +1,7 @@
 extends Node
 
 onready var console = $HUD/Console
+onready var variablesList = $HUD/VariablesContainer/Variables
 onready var output = $HUD/OutputContainer/Output
 onready var simulation = $Simulation
 
@@ -33,6 +34,18 @@ var builtFunctions = {
 	
 }
 
+func print_variables_list():
+	if !simGetVariables.empty():
+		variablesList.add_text("Simulation Variables:\n")
+		for i in simGetVariables.keys():
+			variablesList.add_text(" " + i + "\n")
+	if objects.size() > 0:
+		for i in range(objects.size()):
+			if !objGetVariables[i].empty():
+				variablesList.add_text(objects[i].name + ":\n")
+				for j in objGetVariables[i].keys():
+					variablesList.add_text(" " + j + "\n")
+
 var functions = {}
 
 func _on_simulation_end(status):
@@ -43,6 +56,7 @@ func _on_simulation_end(status):
 
 func _ready():
 	create_simulation()
+	print_variables_list()
 
 func create_simulation():
 	simulation.connect("simulationEnd", self, "_on_simulation_end")
