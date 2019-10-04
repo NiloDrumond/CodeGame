@@ -12,6 +12,14 @@ var constVariables = {
 	"false": false,
 }
 
+var calcPriorities = {
+	"%" : 2,
+	"*" : 1,
+	"/" : 1,
+	"+" : 0,
+	"-" : 0
+}
+
 var objectsFunctions = []
 
 var objects = []
@@ -60,10 +68,112 @@ func print_function(arguments):
 		output.add_text(str(printContent))
 	
 
+func create_calc_tree(expression, lineIndex):
+	if expression == "" or expression == null:
+		return null
+	
+	var calc = [null, null, null]
+	var topPrio = 4
+	var topPrioPos = null
+	var c
+	var par = 0
+	var parTopPrio = 4
+	var parTopPrioPos = null
+	for i in range(expression.length()):
+		c = expression[i]
+		if c == "(":
+			par += 1
+		elif c == ")":
+			par -= 1
+		if calcPriorities.has(c):
+			if par == 0 and calcPriorities[c] < topPrio:
+				topPrioPos = i
+				topPrio = calcPriorities[c]
+			elif calcPriorities[c] < parTopPrio:
+				parTopPrio = calcPriorities[c]
+				parTopPrioPos = i
+				
+			
+	if topPrioPos != null:
+		calc[0] = expression[topPrioPos]
+		calc[1] = create_calc_tree(expression.substr(0, topPrioPos), lineIndex)
+		calc[2] = create_calc_tree(expression.substr(topPrioPos+1, expression.length() - (topPrioPos+1)), lineIndex)
+		return calc
+	elif parTopPrioPos != null:
+		calc[0] = expression[parTopPrioPos]
+		calc[1] = create_calc_tree(expression.substr(0, parTopPrioPos), lineIndex)
+		calc[2] = create_calc_tree(expression.substr(parTopPrioPos+1, expression.length() - (parTopPrioPos+1)), lineIndex)
+		return calc
+	else:
+		
+		expression = expression.replace("(", "").replace(")", "")
+		if expression.is_valid_integer():
+			calc[0] = expression.to_int()
+		elif expression.is_valid_float():
+			calc[0] = expression.to_float()
+			
+		else:
+			if string_has(expression, "."):
+				var objName = expression.split(".")[0]
+				var objVar = expression.split(".")[1]
+				
+				if objName == "Sim":
+					if !simGetVariables.empty() and simGetVariables.has(objVar):
+						calc[0] = simGetVariables[objVar].call_func()
+					else:
+						crash("invalid simulation variable", lineIndex)
+				
+				else:
+					var objIndex = null
+					for i in range(objects.size()):
+						if objects[i].name == objName:
+							objIndex = i
+							break
+					if objIndex != null and !objGetVariables[objIndex].empty() and objGetVariables[objIndex].has(objVar):
+						calc[0] = objGetVariables[objIndex][objVar].call_func()
+					else:
+						crash("invalid object variable", lineIndex)
+						
+			else:
+				if !constVariables.empty() and constVariables.has(expression):
+					calc[0] = constVariables[expression]
+				elif !variables.empty() and variables.has(expression):
+					calc[0] = variables[expression]
+				else:
+					crash("unexpected variable", lineIndex)
+			
+		calc[1] = null
+		calc[2] = null
+		return calc
+	
+func calculate_tree(node):
+	if node != null and node[0] != null:
+		match node[0]:
+			"%":
+				return calculate_tree(node[1]) % calculate_tree(node[2])
+			"*":
+				return calculate_tree(node[1]) * calculate_tree(node[2])
+			"/":
+				var res1 = calculate_tree(node[1])
+				var res2 = calculate_tree(node[2])
+				if typeof(res1) == TYPE_INT and typeof(res2) == TYPE_INT:
+					if res1 % res2 != 0:
+						return float(res1) / float(res2)
+					else:
+						return res1 / res2
+				else:
+					return res1 / res2
+			"+":
+				return calculate_tree(node[1]) + calculate_tree(node[2])
+			"-":
+				return calculate_tree(node[1]) - calculate_tree(node[2])
+			_:
+				return node[0]
+			
 func calculate_expression(expression, lineIndex):
 	
 	var expressionSections = expression.split(" ")
-	
+
 	if expressionSections.size() == 1:
 		var value = expressionSections[0]
 		if value.is_valid_integer():
@@ -99,7 +209,11 @@ func calculate_expression(expression, lineIndex):
 					else:
 						crash("invalid object variable", lineIndex)
 					
-
+	else:
+		expression = expression.replace(" ", "")
+		var calcTree = create_calc_tree(expression, lineIndex)
+		return calculate_tree(calcTree)
+				
 func process_assignment(line, lineIndex):
 	var varName = line.split(" = ")[0]
 	var varVariable = null
@@ -136,13 +250,7 @@ func process_assignment(line, lineIndex):
 		else:
 			crash("unexpected variable", lineIndex)
 
-	
-	
-	
-func calculate_math_expression(expression):
-	pass
 
-	
 func crash(error, line):
 	output.newline()
 	output.add_text("Error: " + error + ". For line: " + str(line))
@@ -158,7 +266,6 @@ func create_variable(line, lineIndex):
 		var assignmentLine = line.replace("var ", "")
 		process_assignment(assignmentLine, lineIndex)
 		
-	
 func get_end_bracket(startIndex):
 	for i in range(startIndex, codeEnd):
 		if console.get_line(i) == "}":
@@ -212,7 +319,6 @@ func read_function(expression, lineIndex):
 	else:
 		crash("invalid function", lineIndex)
 	
-
 func handle_loop(lineIndex, stopIndex):
 	var line = console.get_line(lineIndex)
 	var content = line.split(" ")[1]
@@ -232,8 +338,6 @@ func handle_loop(lineIndex, stopIndex):
 		
 	run_line(loopEnd, stopIndex)
 		
-	
-
 func run_line(lineIndex, stopIndex):
 
 	if lineIndex == null or lineIndex > stopIndex:
@@ -273,13 +377,12 @@ func run_line(lineIndex, stopIndex):
 					read_function(line, lineIndex)
 					run_line(lineIndex+1, stopIndex)
 	
-	
 func _on_RunButton_pressed():
 	variables.clear()
 	codeEnd = console.get_line_count()
 	run_line(0, codeEnd)
-	$HUD.hide()
-	simulation.start_simulation()
+	#$HUD.hide()
+	#simulation.start_simulation()
 
 func get_condition_result(expression):
 	var sections = expression.split(" ")
@@ -386,14 +489,10 @@ func get_condition_result(expression):
 			pass #Erro		
 	return members[0]
 	
-	
 func string_has(string, s):
 	if string.find(s) != null and string.find(s) >= 0:
 		return true
 	else:
 		return false
-		
-		
-		
 		
 		

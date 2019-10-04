@@ -25,12 +25,16 @@ func get_set_variables():
 func get_get_variables():
 	var variables = {
 		"speed": funcref(self, "get_speed"),
-		"position": funcref(self, "get_position")
+		"positionX": funcref(self, "get_positionX"),
+		"positionY": funcref(self, "get_positionY")
 	}
 	return variables
 
-func get_position():
-	return position
+func get_positionX():
+	return position.x
+
+func get_positionY():
+	return position.y
 
 func set_speed(value):
 	speed = value
