@@ -3,8 +3,9 @@ extends Node
 onready var box = $Box
 onready var goal = $Goal
 onready var endTimer = $Timer
+onready var timeLabel = $TimeLabel
 
-export(int) var duration = 2
+export(int) var duration = 3
 var onGoal = false
 
 signal simulationEnd
@@ -20,6 +21,9 @@ func get_duration():
 func get_set_variables():
 	var variables = {}
 	return variables
+
+func _process(delta):
+	timeLabel.text = "Time Left:" + str(stepify(endTimer.time_left, 0.01))
 
 func get_get_variables():
 	var variables = {

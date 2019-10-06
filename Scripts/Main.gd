@@ -21,6 +21,11 @@ var calcPriorities = {
 	"-" : 0
 }
 
+var cWhite = Color("#F2F2F2")
+var cGreen = Color("#10B33A")
+var cRed = Color("#B3101A") 
+var cBeje = Color("#FAED7D")
+
 var objectsFunctions = []
 
 var objects = []
@@ -28,25 +33,58 @@ var objGetVariables = []
 var objSetVariables = []
 var simGetVariables
 var simSetVariables
+var functions = {}
 
 var builtFunctions = {
-	"print" : funcref(self, "print_function")
-	
+	"print" : funcref(self, "print_function"),
+	"vector": funcref(self, "create_vector_function")
 }
 
 func print_variables_list():
+	variablesList.push_color(cGreen) 
+	variablesList.add_text("Open Variables:\n")
+	variablesList.pop()
+	if !simSetVariables.empty():
+		variablesList.push_color(cBeje) 
+		variablesList.add_text("-Simulation\n")
+		variablesList.pop()
+		variablesList.push_color(cWhite) 
+		for i in simSetVariables.keys():
+			variablesList.add_text("  ." + i + "\n")
+		variablesList.pop()
+	if objects.size() > 0:
+		for i in range(objects.size()):
+			if !objSetVariables[i].empty():
+				variablesList.push_color(cBeje) 
+				variablesList.add_text("\n-" + objects[i].name + "\n")
+				variablesList.pop()
+				variablesList.push_color(cWhite) 
+				for j in objSetVariables[i].keys():
+					variablesList.add_text("  ." + j + "\n")
+				variablesList.pop()
+	variablesList.push_color(cGreen) 
+	variablesList.add_text("\n\nClosed Variables:\n\n")
+	variablesList.pop()
 	if !simGetVariables.empty():
-		variablesList.add_text("Simulation Variables:\n")
+		variablesList.push_color(cBeje) 
+		variablesList.add_text("-Simulation\n")
+		variablesList.pop()
+		variablesList.push_color(cWhite) 
 		for i in simGetVariables.keys():
-			variablesList.add_text(" " + i + "\n")
+			variablesList.add_text("  ." + i + "\n")
+		variablesList.pop()
 	if objects.size() > 0:
 		for i in range(objects.size()):
 			if !objGetVariables[i].empty():
-				variablesList.add_text(objects[i].name + ":\n")
+				variablesList.push_color(cBeje) 
+				variablesList.add_text("\n-" + objects[i].name + "\n")
+				variablesList.pop()
+				variablesList.push_color(cWhite) 
 				for j in objGetVariables[i].keys():
-					variablesList.add_text(" " + j + "\n")
+					variablesList.add_text("  ." + j + "\n")
+				variablesList.pop()
 
-var functions = {}
+
 
 func _on_simulation_end(status):
 	if status:
@@ -71,16 +109,35 @@ func create_simulation():
 		objSetVariables.append(objects[o].get_set_variables())
 		objGetVariables.append(objects[o].get_get_variables())
 
-func print_function(arguments):
-	var printContent = arguments[0]
+func print_function(arguments, lineIndex):
+	arguments = arguments[0].replace(" ", "")
+	var printContent;
 	output.newline()
-	if variables.has(printContent):
-		output.add_text(str(variables[printContent]))
-	elif constVariables.has(printContent):
-		output.add_text(str(constVariables[printContent]))
-	else:
-		output.add_text(str(printContent))
+	if string_has(arguments, "."):
+		var objName = arguments.split(".")[0]
+		var objVar = arguments.split(".")[1]
+		
+		if variables.has(objName): #and typeof(variables[objName] == TYPE_VECTOR2):
+			match objVar:
+				"x":
+					output.add_text(str(variables[objName].x))
+				"y":
+					output.add_text(str(variables[objName].y))
+				_:
+					crash("invalid vector variables", lineIndex)
 	
+	if variables.has(arguments):
+		output.add_text(str(variables[arguments]))
+	elif constVariables.has(arguments):
+		output.add_text(str(constVariables[arguments]))
+
+	
+func create_vector_function(arguments,lineIndex):
+	var lExpression = arguments[0]
+	var rExpression = arguments[1]
+	var lResult = calculate_expression(lExpression, lineIndex)
+	var rResult = calculate_expression(rExpression, lineIndex)
+	return Vector2(lResult, rResult)
 
 func create_calc_tree(expression, lineIndex):
 	if expression == "" or expression == null:
@@ -119,7 +176,6 @@ func create_calc_tree(expression, lineIndex):
 		calc[2] = create_calc_tree(expression.substr(parTopPrioPos+1, expression.length() - (parTopPrioPos+1)), lineIndex)
 		return calc
 	else:
-		
 		expression = expression.replace("(", "").replace(")", "")
 		if expression.is_valid_integer():
 			calc[0] = expression.to_int()
@@ -131,7 +187,16 @@ func create_calc_tree(expression, lineIndex):
 				var objName = expression.split(".")[0]
 				var objVar = expression.split(".")[1]
 				
-				if objName == "Sim":
+				if variables.has(objName) and typeof(variables[objName]) == TYPE_VECTOR2:
+					match objVar:
+						"x":
+							calc[0] = variables[objName].x
+						"y":
+							calc[0] = variables[objName].y
+						_:
+							crash("invalid vector variable", lineIndex)
+				
+				elif objName == "Sim":
 					if !simGetVariables.empty() and simGetVariables.has(objVar):
 						calc[0] = simGetVariables[objVar].call_func()
 					else:
@@ -160,17 +225,32 @@ func create_calc_tree(expression, lineIndex):
 		calc[2] = null
 		return calc
 	
-func calculate_tree(node):
+func calculate_tree(node, lineIndex):
 	if node != null and node[0] != null:
+		var res1
+		var res2
+		if node[1] != null:
+			res1 = calculate_tree(node[1], lineIndex)
+		if node[2] != null:
+			res2 = calculate_tree(node[2], lineIndex)
 		match node[0]:
 			"%":
-				return calculate_tree(node[1]) % calculate_tree(node[2])
+				return res1 % res2
 			"*":
-				return calculate_tree(node[1]) * calculate_tree(node[2])
+				if typeof(res1) == TYPE_VECTOR2:
+					if typeof(res2) == TYPE_VECTOR2 or typeof(res2) == TYPE_REAL or typeof(res2) == TYPE_INT:
+						return res1*res2
+					else:
+						crash("invalid calculation with vector", lineIndex)
+				else:
+					return res1 * res2
 			"/":
-				var res1 = calculate_tree(node[1])
-				var res2 = calculate_tree(node[2])
-				if typeof(res1) == TYPE_INT and typeof(res2) == TYPE_INT:
+				if typeof(res1) == TYPE_VECTOR2:
+					if typeof(res2) == TYPE_VECTOR2 or typeof(res2) == TYPE_REAL or typeof(res2) == TYPE_INT:
+						return res1/res2
+					else:
+						crash("invalid calculation with vector", lineIndex)
+				elif typeof(res1) == TYPE_INT and typeof(res2) == TYPE_INT:
 					if res1 % res2 != 0:
 						return float(res1) / float(res2)
 					else:
@@ -178,70 +258,94 @@ func calculate_tree(node):
 				else:
 					return res1 / res2
 			"+":
-				return calculate_tree(node[1]) + calculate_tree(node[2])
+				if typeof(res1) == TYPE_VECTOR2:
+					if typeof(res2) == TYPE_VECTOR2:
+						return res1+res2
+					else:
+						crash("invalid calculation with vector", lineIndex)
+				else:
+					return res1 + res2
 			"-":
-				return calculate_tree(node[1]) - calculate_tree(node[2])
+				if typeof(res1) == TYPE_VECTOR2:
+					if typeof(res2) == TYPE_VECTOR2:
+						return res1-res2
+					else:
+						crash("invalid calculation with vector", lineIndex)
+				else:
+					return res1 - res2
 			_:
 				return node[0]
 			
 func calculate_expression(expression, lineIndex):
 	
 	var expressionSections = expression.split(" ")
-
-	if expressionSections.size() == 1:
-		var value = expressionSections[0]
-		if value.is_valid_integer():
-			return value.to_int()
-		elif value.is_valid_float():
-			return value.to_float()
-		else:
-			var isObject = false
-			var objName
-			var objVar
-			if string_has(value, "."):
-				objName =  value.split(".")[0] 
-				objVar = value.split(".")[1]
-				isObject = true
-			
-			if isObject:
-				if objName == "Sim":
-					if !simGetVariables.empty() and simGetVariables.has(objVar):
-						return simGetVariables[objVar].call_func()
-					else:
-						crash("invalid simulation variable", lineIndex)
-				else:
-					var object
-					var objectIndex
+	
+	var isFunction = false
+	
+	if string_has(expression, "("):
+		var funcName = expression.split("(")[0]
+		for f in builtFunctions.keys():
+			if funcName == f:
+				isFunction = true
+				break
+		if isFunction:
+			return read_function(expression, lineIndex)
+	
+#	if expressionSections.size() == 1:
+#		var value = expressionSections[0]
+#		if value.is_valid_integer():
+#			return value.to_int()
+#		elif value.is_valid_float():
+#			return value.to_float()
+#		else:
+#			var objName
+#			var objVar
+#			if string_has(value, "."):
+#				objName =  value.split(".")[0] 
+#				objVar = value.split(".")[1]
+#				if objName == "Sim":
+#					if !simGetVariables.empty() and simGetVariables.has(objVar):
+#						return simGetVariables[objVar].call_func()
+#					else:
+#						crash("invalid simulation variable", lineIndex)
+#				else:
+#					var object
+#					var objectIndex
+#
+#					for o in range(objects.size()):
+#						if objects[o].name == objName:
+#							object = objects[o]
+#							objectIndex = o
+#							break
+#					if !objGetVariables.empty() and objGetVariables.has(objVar):
+#						return objGetVariables[objVar].call_func()
+#					else:
+#						crash("invalid object variable", lineIndex)
 					
-					for o in range(objects.size()):
-						if objects[o].name == objName:
-							object = objects[o]
-							objectIndex = o
-							break
-					if !objGetVariables.empty() and objGetVariables.has(objVar):
-						return objGetVariables[objVar].call_func()
-					else:
-						crash("invalid object variable", lineIndex)
-					
-	else:
-		expression = expression.replace(" ", "")
-		var calcTree = create_calc_tree(expression, lineIndex)
-		return calculate_tree(calcTree)
+	
+	expression = expression.replace(" ", "")
+	var calcTree = create_calc_tree(expression, lineIndex)
+	return calculate_tree(calcTree, lineIndex)
 				
 func process_assignment(line, lineIndex):
 	var varName = line.split(" = ")[0]
 	var varVariable = null
 	var isObject = false
+	var isFunction = false
+	var expression = line.split(" = ")[1]
 	
 	if string_has(varName, "."):
 		varVariable = varName.split(".")[1]
 		varName = varName.split(".")[0]
-		isObject = true
-		
-	var expression = line.split(" = ")[1]
-	
-	if isObject:
-		if varName == "Sim":
+		if variables.has(varName) and typeof(variables[varName]) == TYPE_VECTOR2:
+			match varVariable:
+				"x":
+					variables[varName].x = calculate_expression(expression, lineIndex)
+				"y":
+					variables[varName].y = calculate_expression(expression, lineIndex)
+				_:
+					crash("invalid vector variable", lineIndex)
+		elif varName == "Sim":
 			if !simSetVariables.empty() and simSetVariables.has(varName):
 				simSetVariables[varVariable].call_func(calculate_expression(expression, lineIndex))
 		else:
@@ -329,7 +433,7 @@ func read_function(expression, lineIndex):
 	var f = expression.split("(", true, 1)[0]
 	var arguments = expression.split("(", true, 1)[1].rsplit(")", true, 1)[0].split(",")
 	if builtFunctions.has(f):
-		return builtFunctions[f].call_func(arguments)
+		return builtFunctions[f].call_func(arguments, lineIndex)
 	else:
 		crash("invalid function", lineIndex)
 	
