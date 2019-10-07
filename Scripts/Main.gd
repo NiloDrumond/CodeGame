@@ -84,8 +84,6 @@ func print_variables_list():
 					variablesList.add_text("  ." + j + "\n")
 				variablesList.pop()
 
-
-
 func _on_simulation_end(status):
 	if status:
 		print("great sucess")
@@ -196,7 +194,7 @@ func create_calc_tree(expression, lineIndex):
 						_:
 							crash("invalid vector variable", lineIndex)
 				
-				elif objName == "Sim":
+				elif objName == "Simulation":
 					if !simGetVariables.empty() and simGetVariables.has(objVar):
 						calc[0] = simGetVariables[objVar].call_func()
 					else:
@@ -303,7 +301,7 @@ func calculate_expression(expression, lineIndex):
 #			if string_has(value, "."):
 #				objName =  value.split(".")[0] 
 #				objVar = value.split(".")[1]
-#				if objName == "Sim":
+#				if objName == "Simulation":
 #					if !simGetVariables.empty() and simGetVariables.has(objVar):
 #						return simGetVariables[objVar].call_func()
 #					else:
@@ -345,7 +343,7 @@ func process_assignment(line, lineIndex):
 					variables[varName].y = calculate_expression(expression, lineIndex)
 				_:
 					crash("invalid vector variable", lineIndex)
-		elif varName == "Sim":
+		elif varName == "Simulation":
 			if !simSetVariables.empty() and simSetVariables.has(varName):
 				simSetVariables[varVariable].call_func(calculate_expression(expression, lineIndex))
 		else:
@@ -367,7 +365,6 @@ func process_assignment(line, lineIndex):
 			variables[varName] = calculate_expression(expression, lineIndex)
 		else:
 			crash("unexpected variable", lineIndex)
-
 
 func crash(error, line):
 	output.newline()
@@ -499,8 +496,8 @@ func _on_RunButton_pressed():
 	variables.clear()
 	codeEnd = console.get_line_count()
 	run_line(0, codeEnd)
-	#$HUD.hide()
-	#simulation.start_simulation()
+	$HUD.hide()
+	simulation.start_simulation()
 
 func get_condition_result(expression):
 	var sections = expression.split(" ")

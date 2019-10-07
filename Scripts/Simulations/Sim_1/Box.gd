@@ -16,7 +16,7 @@ func start():
 	
 func get_set_variables():
 	var variables = {
-		"vector:speed": funcref(self, "set_speed"),
+		"speedVector": funcref(self, "set_speed"),
 	}
 	return variables
 
