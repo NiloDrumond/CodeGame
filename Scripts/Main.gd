@@ -31,6 +31,7 @@ var objectsFunctions = []
 var objects = []
 var objGetVariables = []
 var objSetVariables = []
+var objFunctions = []
 var simGetVariables
 var simSetVariables
 var functions = {}
@@ -129,7 +130,6 @@ func print_function(arguments, lineIndex):
 	elif constVariables.has(arguments):
 		output.add_text(str(constVariables[arguments]))
 
-	
 func create_vector_function(arguments,lineIndex):
 	var lExpression = arguments[0]
 	var rExpression = arguments[1]
@@ -496,8 +496,8 @@ func _on_RunButton_pressed():
 	variables.clear()
 	codeEnd = console.get_line_count()
 	run_line(0, codeEnd)
-	$HUD.hide()
-	simulation.start_simulation()
+	#$HUD.hide()
+	#simulation.start_simulation()
 
 func get_condition_result(expression):
 	var sections = expression.split(" ")

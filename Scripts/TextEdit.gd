@@ -7,7 +7,7 @@ var primitiveFuncColor = Color( 0.8, 0.36, 0.36, 1 )
 var funcColor = Color( 0.12, 0.56, 1, 1 )
 
 var primitiveFuncKeywords = ["if", "elif", "else", "loop"]
-var funcKeywords = ["print", "vector"]
+var funcKeywords = ["print", "vector", "var"]
 
 func _ready():
 	theme.set_color("number_color", "TextEdit",  numberColor) 
