@@ -6,7 +6,7 @@ var selectionColor = Color(.75,.75,.75,1)
 var primitiveFuncColor = Color( 0.8, 0.36, 0.36, 1 )
 var funcColor = Color( 0.12, 0.56, 1, 1 )
 
-var primitiveFuncKeywords = ["if", "elif", "else", "loop"]
+var primitiveFuncKeywords = ["if", "elif", "else", "while", "for", "and", "!", "or"]
 var funcKeywords = ["print", "vector", "var"]
 
 func _ready():

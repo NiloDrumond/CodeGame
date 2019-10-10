@@ -276,30 +276,184 @@ func calculate_tree(node, lineIndex):
 				return node[0]
 			
 func calculate_expression(expression, lineIndex):
-	
-	var expressionSections = expression.split(" ")
-	
-	var isFunction = false
-	
+	expression = expression.replace(" ", "")
 	if string_has(expression, "("):
 		var funcName = expression.split("(")[0]
 		for f in builtFunctions.keys():
 			if funcName == f:
-				isFunction = true
-				break
-		if isFunction:
-			return read_function(expression, lineIndex)
-	
+				return read_function(expression, lineIndex)
+				
+			
 	expression = expression.replace(" ", "")
 	var calcTree = create_calc_tree(expression, lineIndex)
 	return calculate_tree(calcTree, lineIndex)
+
+func calculate_condition(expression, lineIndex):
+	if string_has(expression, "("):
+		var funcName = expression.split("(")[0]
+		for f in builtFunctions.keys():
+			if funcName == f:
+				return read_function(expression, lineIndex)
 				
-#func calculate_condition(expression, lineIndex):
+	var calcTree = create_cond_tree(expression, lineIndex)
+	return calculate_cond_tree(calcTree, lineIndex)
 
-#func create_cond_tree(expression, lineIndex):
+func create_cond_tree(expression, lineIndex):
+	if expression == "" or expression == null:
+		return null
+	var calc = [null, null, null]
+	var topPos = null
+	var top = null
+	var c
+	var par = 0
+	var parTopPos = null
+	var parTop = null
+	for i in range(expression.length()):
+		c = expression[i]
+		if c == "(":
+			par += 1
+		elif c == ")":
+			par -= 1
+		if c == "!":
+			if par == 0:
+				topPos = i
+				top = "!"
+			else:
+				parTopPos = i
+				parTop = "!"
+		elif c == "a" and expression.length() > i+2 and expression[i+1] == "n" and expression[i+2] == "d" and expression[i+3] == " ":
+			if par == 0:
+				topPos = i
+				top = "and"
+				i += 2
+			else:
+				parTopPos = i
+				parTop = "and"
+				i += 2
+		elif c == "o" and expression.length() > i+1 and expression[i+1] == "r" and expression[i+2] == " ":
+			if par == 0:
+				topPos = i
+				top = "or"
+				i += 1
+			else:
+				parTopPos = i
+				top = "or"
+				i += 1
+				
+			
+	if topPos != null:
+		calc[0] = top
+		match top:
+			"!":
+				calc[1] = create_cond_tree(expression.substr(topPos+1, expression.length()-(topPos+1)), lineIndex)
+			"and":
+				calc[1] = create_cond_tree(expression.substr(0, topPos), lineIndex) 
+				calc[2] = create_cond_tree(expression.substr(topPos+3, expression.length() - (topPos+3)),lineIndex)
+			"or":
+				calc[1] = create_cond_tree(expression.substr(0, topPos), lineIndex) 
+				calc[2] = create_cond_tree(expression.substr(topPos+2, expression.length() - (topPos+2)),lineIndex)
+		return calc
+	elif parTopPos != null:
+		calc[0] = parTop
+		match parTop:
+			"!":
+				calc[1] = create_cond_tree(expression.substr(parTopPos+1, expression.length()-(parTopPos+1)), lineIndex)
+			"and":
+				calc[1] = create_cond_tree(expression.substr(0, parTopPos), lineIndex) 
+				calc[2] = create_cond_tree(expression.substr(parTopPos+3, expression.length() - (parTopPos+3)),lineIndex)
+			"or":
+				calc[1] = create_cond_tree(expression.substr(0, parTopPos), lineIndex) 
+				calc[2] = create_cond_tree(expression.substr(parTopPos+2, expression.length() - (parTopPos+2)),lineIndex)
+		return calc
+	else:
+		expression = expression.replace("(", "").replace(")", "").replace(" ", "")
+		if string_has(expression, "=="):
+			if calculate_expression(expression.split("==")[0], lineIndex) == calculate_expression(expression.split("==")[1], lineIndex):
+				calc[0] = true
+			else:
+				calc[0] = false
+		elif string_has(expression, "!="):
+			if calculate_expression(expression.split("!=")[0], lineIndex) != calculate_expression(expression.split("!=")[1], lineIndex):
+				calc[0] = true
+			else:
+				calc[0] = false
+		elif string_has(expression, ">="):
+			if calculate_expression(expression.split(">=")[0], lineIndex) >= calculate_expression(expression.split(">=")[1], lineIndex):
+				calc[0] = true
+			else:
+				calc[0] = false
+		elif string_has(expression, ">"):
+			if calculate_expression(expression.split(">")[0], lineIndex) > calculate_expression(expression.split(">")[1], lineIndex):
+				calc[0] = true
+			else:
+				calc[0] = false
+		elif string_has(expression, "<="):
+			if calculate_expression(expression.split("<=")[0], lineIndex) <= calculate_expression(expression.split("<=")[1], lineIndex):
+				calc[0] = true
+			else:
+				calc[0] = false
+		elif string_has(expression, "<"):
+			if calculate_expression(expression.split("<")[0], lineIndex) < calculate_expression(expression.split("<")[1], lineIndex):
+				calc[0] = true
+			else:
+				calc[0] = false
+		else:
+			if string_has(expression, "."):
+				var objName = expression.split(".")[0]
+				var objVar = expression.split(".")[1]
+				if objName == "Simulation":
+					if !simGetVariables.empty() and simGetVariables.has(objVar):
+						calc[0] = simGetVariables[objVar].call_func()
+						if calc[0] != true and calc[0] != false:
+							crash("non boolean value on comparation", lineIndex)
+					else:
+						crash("invalid simulation variable", lineIndex)
+				else:
+					var objIndex = null
+					for i in range(objects.size()):
+						if objects[i].name == objName:
+							objIndex = i
+							break
+					if objIndex != null and !objGetVariables[objIndex].empty() and objGetVariables[objIndex].has(objVar):
+						calc[0] = objGetVariables[objIndex][objVar].call_func()
+						if calc[0] != true and calc[0] != false:
+							crash("non boolean value on comparation", lineIndex)
+					else:
+						crash("invalid object variable", lineIndex)
+						
+			else:
+				if !constVariables.empty() and constVariables.has(expression):
+					calc[0] = constVariables[expression]
+				elif !variables.empty() and variables.has(expression):
+					calc[0] = variables[expression]
+				else:
+					crash("unexpected variable", lineIndex)
+				
+		calc[1] = null
+		calc[2] = null
+		return calc
 
-#func calculate_condition_tree(node, lineIndex):
-
+func calculate_cond_tree(node, lineIndex):
+	if node == null or node[0] == null:
+		return null
+	
+	var res1 = node[1]
+	var res2 = node[2]
+	
+	match node[0]:
+		true:
+			return true
+		false:
+			return false
+		"!":
+			return ! calculate_cond_tree(res1, lineIndex)
+		"and":
+			return calculate_cond_tree(res1, lineIndex) and calculate_cond_tree(res2, lineIndex)
+		"or":
+			return calculate_cond_tree(res1, lineIndex) or calculate_cond_tree(res2, lineIndex)
+	
+	return null
+	
 func process_assignment(line, lineIndex):
 	var varName = line.split(" = ")[0]
 	var varVariable = null
@@ -370,9 +524,11 @@ func get_chain_end_line(startIndex):
 	for i in range(startIndex, codeEnd):
 		if console.get_line(i)[0] == "":
 			pass
-		elif console.get_line(i).split(" ")[0] == "elif" or console.get_line(i).split(" ")[0] == "else":
+		elif console.get_line(i).split(" ")[0] == "elif":
 			var newIndex = get_end_bracket(i)
 			return get_chain_end_line(newIndex)
+		elif console.get_line(i).split(" ")[0] == "else":
+			return get_end_bracket(i)
 		else:
 			return i
 
@@ -385,12 +541,19 @@ func look_for_else(startIndex):
 		else:
 			return -1
 
-func handle_condition(expression, lineIndex, stopIndex):
-	var runCondition = get_condition_result(expression)
+func handle_condition(lineIndex, stopIndex):
+	var line = console.get_line(lineIndex)
+	var condition
+	if string_has(line, "if"):
+		condition = line.split("if")[1]
+	else:
+		condition = line.split("elif")[1]
+	condition = condition.substr(condition.find("(") + 1, condition.find_last(")") - condition.find("(") - 1)
+	condition = calculate_condition(condition, lineIndex)
 	
 	var stopConditionIndex = get_end_bracket(lineIndex)
 	
-	if runCondition:
+	if condition:
 		run_line(lineIndex + 1, stopConditionIndex)
 		var endChainIndex = get_chain_end_line(stopConditionIndex)
 		run_line(endChainIndex, stopIndex)
@@ -399,10 +562,11 @@ func handle_condition(expression, lineIndex, stopIndex):
 		if nextConditionIndex == null or nextConditionIndex == -1:
 			run_line(stopConditionIndex, stopIndex)
 		elif console.get_line(nextConditionIndex).split(" ")[0] == "elif":
-			var newExpression = console.get_line(nextConditionIndex).replace("elif ", "").replace(" {","")
-			handle_condition(newExpression, stopConditionIndex, stopIndex)
+			handle_condition(nextConditionIndex, stopIndex)
+		elif console.get_line(nextConditionIndex).split(" ")[0] == "else":
+			run_line(nextConditionIndex+1, stopIndex)
 		else:
-			run_line(stopConditionIndex+1, stopIndex)
+			run_line(stopConditionIndex, stopIndex)
 
 func read_function(expression, lineIndex):
 	var f = expression.split("(", true, 1)[0]
@@ -427,15 +591,20 @@ func handle_for_loop(lineIndex, stopIndex):
 		run_line(lineIndex+1, loopEnd)
 		i = int(variables[varName])
 		
+	variables.erase(varName)
 	run_line(loopEnd, stopIndex)
 	
 func handle_while_loop(lineIndex, stopIndex):
 	var line = console.get_line(lineIndex)
-	var content = line.substr(line.find("("), line.find_last(")") - line.find("("))
+	var condition = line.split(" ", true, 1)[1]
+	condition = condition.substr(condition.find("(") + 1, condition.find_last(")") - condition.find("(") - 1)
 	var loopEnd = get_end_bracket(lineIndex)
-	var check = false #calculate_condition(content)
-	while check:
+	var infLoopBreaker = 0
+	while(calculate_condition(condition, lineIndex)):
 		run_line(lineIndex+1, loopEnd)
+		infLoopBreaker += 1
+		if infLoopBreaker > 10000:
+			crash("infinite loop", lineIndex)
 	run_line(loopEnd, stopIndex)
 	
 func run_line(lineIndex, stopIndex):
@@ -460,9 +629,8 @@ func run_line(lineIndex, stopIndex):
 			process_assignment(line, lineIndex)
 			run_line(lineIndex+1, stopIndex)
 			
-		elif sections[0] == "if" or sections[0] == "elif":
-			var expression = line.replace("if ", "").replace("elif ", "").replace("else ", "").replace(" {","")
-			handle_condition(expression, lineIndex, stopIndex)
+		elif string_has(line, "if") or string_has(line, "elif"):
+			handle_condition(lineIndex, stopIndex)
 		
 		elif sections[0] == "while":
 			handle_while_loop(lineIndex, stopIndex)
