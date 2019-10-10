@@ -1,4 +1,4 @@
-extends Node
+ extends Node
 
 onready var console = $HUD/Console
 onready var variablesList = $HUD/VariablesContainer/Variables
@@ -283,8 +283,6 @@ func calculate_expression(expression, lineIndex):
 			if funcName == f:
 				return read_function(expression, lineIndex)
 				
-			
-	expression = expression.replace(" ", "")
 	var calcTree = create_calc_tree(expression, lineIndex)
 	return calculate_tree(calcTree, lineIndex)
 
@@ -314,7 +312,7 @@ func create_cond_tree(expression, lineIndex):
 			par += 1
 		elif c == ")":
 			par -= 1
-		if c == "!":
+		if c == "!" and expression.length() > i+1 and expression[i+1] != "=":
 			if par == 0:
 				topPos = i
 				top = "!"
@@ -455,6 +453,7 @@ func calculate_cond_tree(node, lineIndex):
 	return null
 	
 func process_assignment(line, lineIndex):
+	line = line.replace("	", "")
 	var varName = line.split(" = ")[0]
 	var varVariable = null
 	var isObject = false
@@ -497,8 +496,8 @@ func process_assignment(line, lineIndex):
 
 func crash(error, line):
 	output.newline()
-	output.add_text("Error: " + error + ". For line: " + str(line))
-	print("Error: " + error + ". For line: " + str(line))
+	output.add_text("Error: " + error + ". For line: " + str(line + 1))
+	print("\nError: " + error + ". For line: " + str(line + 1))
 
 func create_variable(line, lineIndex):
 	var varName = line.split(" ", false, 2)[1]
@@ -513,62 +512,69 @@ func variable_creation(varName, lineIndex):
 			crash("variable already exists", lineIndex)
 	variables[varName] = null
 	
-func get_end_bracket(startIndex):
+func get_end_bracket(startIndex, tabs):
 	for i in range(startIndex, codeEnd):
-		if console.get_line(i) == "}":
-			return i + 1
-			
+		if console.get_line(i).find("	") != tabs:
+			pass
+		elif string_has(console.get_line(i), "}"):
+			return i
 	crash("Expecting } ", startIndex)
 
 func get_chain_end_line(startIndex):
+	startIndex += 1
 	for i in range(startIndex, codeEnd):
 		if console.get_line(i)[0] == "":
 			pass
-		elif console.get_line(i).split(" ")[0] == "elif":
-			var newIndex = get_end_bracket(i)
+		elif string_has(console.get_line(i), "elif"):
+			var newIndex = get_end_bracket(i, console.get_line(i).find("	"))
 			return get_chain_end_line(newIndex)
-		elif console.get_line(i).split(" ")[0] == "else":
-			return get_end_bracket(i)
+		elif string_has(console.get_line(i), "else"):
+			return get_end_bracket(i, console.get_line(i).find("	"))
 		else:
 			return i
 
 func look_for_else(startIndex):
+	startIndex += 1
 	for i in range(startIndex, codeEnd):
 		if console.get_line(i) == "":
 			pass
-		elif console.get_line(i).split(" ")[0] == "elif" or console.get_line(i).split(" ")[0] == "else":
-			return i
+		elif string_has(console.get_line(i), "elif"):
+			return [i, true]
+		elif string_has(console.get_line(i),"else"):
+			return [i, false]
 		else:
-			return -1
+			return [-1, false]
 
 func handle_condition(lineIndex, stopIndex):
 	var line = console.get_line(lineIndex)
 	var condition
-	if string_has(line, "if"):
+	if string_has(line, "if"): 
 		condition = line.split("if")[1]
 	else:
 		condition = line.split("elif")[1]
 	condition = condition.substr(condition.find("(") + 1, condition.find_last(")") - condition.find("(") - 1)
 	condition = calculate_condition(condition, lineIndex)
 	
-	var stopConditionIndex = get_end_bracket(lineIndex)
+	var stopConditionIndex = get_end_bracket(lineIndex, line.find("	"))
 	
 	if condition:
 		run_line(lineIndex + 1, stopConditionIndex)
 		var endChainIndex = get_chain_end_line(stopConditionIndex)
 		run_line(endChainIndex, stopIndex)
 	else:
-		var nextConditionIndex = look_for_else(stopConditionIndex)
-		if nextConditionIndex == null or nextConditionIndex == -1:
+		var nextConditionIndex = [null, null]
+		nextConditionIndex = look_for_else(stopConditionIndex)
+		if nextConditionIndex[0] == null or nextConditionIndex[0] == -1:
 			run_line(stopConditionIndex, stopIndex)
-		elif console.get_line(nextConditionIndex).split(" ")[0] == "elif":
-			handle_condition(nextConditionIndex, stopIndex)
-		elif console.get_line(nextConditionIndex).split(" ")[0] == "else":
-			run_line(nextConditionIndex+1, stopIndex)
+		elif nextConditionIndex[1]:
+			handle_condition(nextConditionIndex[0], stopIndex)
+		elif !nextConditionIndex[1] and nextConditionIndex[0] != null:
+			run_line(nextConditionIndex[0]+1, stopIndex)
 		else:
 			run_line(stopConditionIndex, stopIndex)
 
 func read_function(expression, lineIndex):
+	expression = expression.replace("	", "")
 	var f = expression.split("(", true, 1)[0]
 	var arguments = expression.split("(", true, 1)[1].rsplit(")", true, 1)[0].split(",")
 	if builtFunctions.has(f):
@@ -584,7 +590,7 @@ func handle_for_loop(lineIndex, stopIndex):
 	duration = duration.substr(duration.find("(") + 1, duration.find_last(")") - duration.find("(") - 1)
 	duration = int(calculate_expression(duration, lineIndex))
 	
-	var loopEnd = get_end_bracket(lineIndex)
+	var loopEnd = get_end_bracket(lineIndex, line.find("	"))
 	
 	for i in range(duration):
 		variables[varName] = i
@@ -596,11 +602,11 @@ func handle_for_loop(lineIndex, stopIndex):
 	
 func handle_while_loop(lineIndex, stopIndex):
 	var line = console.get_line(lineIndex)
-	var condition = line.split(" ", true, 1)[1]
+	var condition = line.split("while", true, 1)[1]
 	condition = condition.substr(condition.find("(") + 1, condition.find_last(")") - condition.find("(") - 1)
-	var loopEnd = get_end_bracket(lineIndex)
+	var loopEnd = get_end_bracket(lineIndex, line.find("	"))
 	var infLoopBreaker = 0
-	while(calculate_condition(condition, lineIndex)):
+	while(calculate_condition(condition, lineIndex) and infLoopBreaker < 10000):
 		run_line(lineIndex+1, loopEnd)
 		infLoopBreaker += 1
 		if infLoopBreaker > 10000:
@@ -608,20 +614,18 @@ func handle_while_loop(lineIndex, stopIndex):
 	run_line(loopEnd, stopIndex)
 	
 func run_line(lineIndex, stopIndex):
-
+	var line = console.get_line(lineIndex)
+	var lineNoTabs = line
+	if line != "" and line[0] == "	":
+		lineNoTabs = line.replace("	", "")
+	
+	var sections = lineNoTabs.split(" ", false)
 	if lineIndex == null or lineIndex > stopIndex:
 		pass
-	elif console.get_line(lineIndex) == "" or console.get_line(lineIndex) == "}":
+	elif lineNoTabs == "}" or lineNoTabs == "":
 		run_line(lineIndex+1, stopIndex)
 	else:
-		var line = console.get_line(lineIndex)
-		
-		if line[0] == "	":
-			line = line.replace("	", "")
-		
-		var sections = line.split(" ", false)
-		
-		if sections[0] == "var":
+		if sections.size() > 1 and sections[0] == "var":
 			create_variable(line, lineIndex)
 			run_line(lineIndex+1, stopIndex)
 			
@@ -629,12 +633,12 @@ func run_line(lineIndex, stopIndex):
 			process_assignment(line, lineIndex)
 			run_line(lineIndex+1, stopIndex)
 			
-		elif string_has(line, "if") or string_has(line, "elif"):
+		elif string_has(line, "if"):
 			handle_condition(lineIndex, stopIndex)
 		
-		elif sections[0] == "while":
+		elif string_has(line, "while"):
 			handle_while_loop(lineIndex, stopIndex)
-		elif sections[0] == "for":
+		elif string_has(line, "for"):
 			handle_for_loop(lineIndex, stopIndex)
 		else:
 			for f in builtFunctions:
@@ -649,6 +653,7 @@ func run_line(lineIndex, stopIndex):
 func _on_RunButton_pressed():
 	variables.clear()
 	codeEnd = console.get_line_count()
+	output.newline()
 	run_line(0, codeEnd)
 	#console.readonly = true
 	#$HUD.hide()

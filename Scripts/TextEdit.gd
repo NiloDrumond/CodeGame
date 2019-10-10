@@ -6,7 +6,7 @@ var selectionColor = Color(.75,.75,.75,1)
 var primitiveFuncColor = Color( 0.8, 0.36, 0.36, 1 )
 var funcColor = Color( 0.12, 0.56, 1, 1 )
 
-var primitiveFuncKeywords = ["if", "elif", "else", "while", "for", "and", "!", "or"]
+var primitiveKeywords = ["if", "elif", "else", "while", "for", "and", "!", "or", "true", "false"]
 var funcKeywords = ["print", "vector", "var"]
 
 func _ready():
@@ -16,7 +16,7 @@ func _ready():
 	theme.set_color("member_variable_color", "TextEdit", selectionColor)
 	theme.set_color("breakpoint_color", "TextEdit", Color("002f213b"))
 	
-	for keyword in primitiveFuncKeywords:
+	for keyword in primitiveKeywords:
 		add_keyword_color(keyword, primitiveFuncColor)
 		
 	for keyword in funcKeywords:
