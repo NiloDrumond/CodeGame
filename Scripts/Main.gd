@@ -21,6 +21,7 @@ var calcPriorities = {
 	"-" : 0
 }
 
+var hudActive = true
 var cWhite = Color("#F2F2F2")
 var cGreen = Color("#10B33A")
 var cRed = Color("#B3101A") 
@@ -289,42 +290,16 @@ func calculate_expression(expression, lineIndex):
 		if isFunction:
 			return read_function(expression, lineIndex)
 	
-#	if expressionSections.size() == 1:
-#		var value = expressionSections[0]
-#		if value.is_valid_integer():
-#			return value.to_int()
-#		elif value.is_valid_float():
-#			return value.to_float()
-#		else:
-#			var objName
-#			var objVar
-#			if string_has(value, "."):
-#				objName =  value.split(".")[0] 
-#				objVar = value.split(".")[1]
-#				if objName == "Simulation":
-#					if !simGetVariables.empty() and simGetVariables.has(objVar):
-#						return simGetVariables[objVar].call_func()
-#					else:
-#						crash("invalid simulation variable", lineIndex)
-#				else:
-#					var object
-#					var objectIndex
-#
-#					for o in range(objects.size()):
-#						if objects[o].name == objName:
-#							object = objects[o]
-#							objectIndex = o
-#							break
-#					if !objGetVariables.empty() and objGetVariables.has(objVar):
-#						return objGetVariables[objVar].call_func()
-#					else:
-#						crash("invalid object variable", lineIndex)
-					
-	
 	expression = expression.replace(" ", "")
 	var calcTree = create_calc_tree(expression, lineIndex)
 	return calculate_tree(calcTree, lineIndex)
 				
+#func calculate_condition(expression, lineIndex):
+
+#func create_cond_tree(expression, lineIndex):
+
+#func calculate_condition_tree(node, lineIndex):
+
 func process_assignment(line, lineIndex):
 	var varName = line.split(" = ")[0]
 	var varVariable = null
@@ -373,14 +348,17 @@ func crash(error, line):
 
 func create_variable(line, lineIndex):
 	var varName = line.split(" ", false, 2)[1]
-	for i in variables:
-		if i == varName:
-			crash("variable already exists", line)
-	variables[varName] = null
+	variable_creation(varName, lineIndex)
 	if line.split(" ")[2] == "=":
 		var assignmentLine = line.replace("var ", "")
 		process_assignment(assignmentLine, lineIndex)
 		
+func variable_creation(varName, lineIndex):
+	for i in variables:
+		if i == varName:
+			crash("variable already exists", lineIndex)
+	variables[varName] = null
+	
 func get_end_bracket(startIndex):
 	for i in range(startIndex, codeEnd):
 		if console.get_line(i) == "}":
@@ -434,25 +412,32 @@ func read_function(expression, lineIndex):
 	else:
 		crash("invalid function", lineIndex)
 	
-func handle_loop(lineIndex, stopIndex):
+func handle_for_loop(lineIndex, stopIndex):
 	var line = console.get_line(lineIndex)
-	var content = line.split(" ")[1]
+	var varName = line.split(" ")[1]
+	variable_creation(varName, lineIndex)
+	var duration = line.split(" ", true, 2)[2]
+	duration = duration.substr(duration.find("(") + 1, duration.find_last(")") - duration.find("(") - 1)
+	duration = int(calculate_expression(duration, lineIndex))
+	
 	var loopEnd = get_end_bracket(lineIndex)
-	var iterations
-	if variables.has(content):
-		iterations = variables[content]
-	elif constVariables.has(content):
-		iterations = constVariables[content]
-	elif content.is_valid_integer():
-		iterations = content
-	else:
-		crash("invalid loop argument", lineIndex)
-		
-	for i in range(iterations):
+	
+	for i in range(duration):
+		variables[varName] = i
 		run_line(lineIndex+1, loopEnd)
+		i = int(variables[varName])
 		
 	run_line(loopEnd, stopIndex)
-		
+	
+func handle_while_loop(lineIndex, stopIndex):
+	var line = console.get_line(lineIndex)
+	var content = line.substr(line.find("("), line.find_last(")") - line.find("("))
+	var loopEnd = get_end_bracket(lineIndex)
+	var check = false #calculate_condition(content)
+	while check:
+		run_line(lineIndex+1, loopEnd)
+	run_line(loopEnd, stopIndex)
+	
 func run_line(lineIndex, stopIndex):
 
 	if lineIndex == null or lineIndex > stopIndex:
@@ -479,9 +464,10 @@ func run_line(lineIndex, stopIndex):
 			var expression = line.replace("if ", "").replace("elif ", "").replace("else ", "").replace(" {","")
 			handle_condition(expression, lineIndex, stopIndex)
 		
-		elif sections[0] == "loop":
-			handle_loop(lineIndex, stopIndex)
-			
+		elif sections[0] == "while":
+			handle_while_loop(lineIndex, stopIndex)
+		elif sections[0] == "for":
+			handle_for_loop(lineIndex, stopIndex)
 		else:
 			for f in builtFunctions:
 				if sections[0].begins_with(f):
@@ -496,6 +482,7 @@ func _on_RunButton_pressed():
 	variables.clear()
 	codeEnd = console.get_line_count()
 	run_line(0, codeEnd)
+	#console.readonly = true
 	#$HUD.hide()
 	#simulation.start_simulation()
 
@@ -610,4 +597,12 @@ func string_has(string, s):
 	else:
 		return false
 		
+func _on_SwapButton_pressed():
+	if hudActive:
+		$HUD.hide()
+		hudActive = false
+	else:
+		$HUD.show()
+		hudActive = true
 		
+
