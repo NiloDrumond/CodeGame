@@ -7,6 +7,9 @@ onready var simulation = $Simulation
 
 var codeEnd
 
+var running
+var sucess
+
 var variables = {} 
 var constVariables = {
 	"true": true,
@@ -88,9 +91,10 @@ func print_variables_list():
 
 func _on_simulation_end(status):
 	if status:
-		print("great sucess")
+		$ResultLabel.text = "Sucess!"
 	else:
-		print("you failed")
+		$ResultLabel.text = "Failed :c"
+	$ResultLabel.show()
 
 func _ready():
 	create_simulation()
@@ -655,9 +659,10 @@ func _on_RunButton_pressed():
 	codeEnd = console.get_line_count()
 	output.newline()
 	run_line(0, codeEnd)
-	#console.readonly = true
-	#$HUD.hide()
-	#simulation.start_simulation()
+	console.readonly = true
+	$HUD.hide()
+	hudActive = false
+	simulation.start_simulation()
 
 func get_condition_result(expression):
 	var sections = expression.split(" ")
